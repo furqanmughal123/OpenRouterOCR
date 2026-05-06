@@ -1,8 +1,8 @@
 """
-OpenRouter Urdu OCR Studio
+OpenRouter OCR Studio
 ==========================
-Uses OpenRouter API (OpenAI-compatible) for high-accuracy Urdu OCR.
-SupportsSupports Baidu Qianfan-OCR-Fast, Nemotron Nano 12B VL, Nemotron Nano Omni 30B.
+Uses OpenRouter API (OpenAI-compatible) for high-accuracy OCR.
+Supports Baidu Qianfan-OCR-Fast, Nemotron Nano 12B VL, Nemotron Nano Omni 30B.
 
 pip install PyQt6 pillow pymupdf
 """
@@ -65,7 +65,7 @@ MODELS = {
 }
 
 OCR_PROMPT = (
-    "You are an expert Urdu/Arabic OCR engine. "
+    "You are an expert OCR engine. "
     "Transcribe ALL text visible in this image exactly as written, "
     "preserving every line break, punctuation mark, and diacritic (harakat). "
     "Output ONLY the raw transcribed text — no explanations, no commentary. "
@@ -113,8 +113,8 @@ class OCRWorker(QThread):
         headers = {
             "Content-Type":  "application/json",
             "Authorization": f"Bearer {self.api_key}",
-            "HTTP-Referer":  "https://urdu-ocr-studio",
-            "X-Title":       "Urdu OCR Studio",
+            "HTTP-Referer":  "https://ocr-studio",
+            "X-Title":       "OCR Studio",
         }
 
         max_retries = 1
@@ -167,7 +167,7 @@ class OCRWorker(QThread):
                     self.progress.emit(int(i / total * 95), f"Page {i+1}/{total} …")
                     pix = doc[i].get_pixmap(matrix=fitz.Matrix(300/72, 300/72), alpha=False)
                     img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                    pages.append(f"{'─'*56}\nصفحہ {i+1}\n{'─'*56}\n{self._infer(img)}")
+                    pages.append(f"{'─'*56}\n page no.{i+1}\n{'─'*56}\n{self._infer(img)}")
                 doc.close()
                 self.progress.emit(100, "Done!")
                 self.finished.emit("\n\n".join(pages))
@@ -217,7 +217,7 @@ class DropZone(QFrame):
 class App(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Urdu OCR Studio  —  OpenRouter")
+        self.setWindowTitle("OCR Studio  —  OpenRouter")
         self.resize(960, 760)
         self.setAcceptDrops(True)
         self._worker = None
@@ -235,13 +235,13 @@ class App(QMainWindow):
         self.setCentralWidget(root)
 
         # Title
-        t = QLabel("Urdu OCR Studio")
+        t = QLabel("OCR Studio")
         t.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))
         t.setAlignment(Qt.AlignmentFlag.AlignCenter)
         t.setStyleSheet(f"color:{BLUE};")
         layout.addWidget(t)
 
-        s = QLabel("Powered by OpenRouter  ·  Qwen3 / Qwen2.5-VL / Gemini / GPT-4o")
+        s = QLabel("Powered by OpenRouter  · Baidu Qianfan-OCR-Fast, Nemotron Nano 12B VL, Nemotron Nano Omni 30B")
         s.setFont(QFont("Segoe UI", 10))
         s.setAlignment(Qt.AlignmentFlag.AlignCenter)
         s.setStyleSheet(f"color:{MUTED};")
@@ -309,7 +309,7 @@ class App(QMainWindow):
         self.out = QTextEdit()
         self.out.setReadOnly(True)
         self.out.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.out.setPlaceholderText("اردو متن یہاں ظاہر ہوگا …\n(Urdu text will appear here …)")
+        self.out.setPlaceholderText("…\n(text will appear here …)")
         layout.addWidget(self.out, stretch=1)
 
         # Status bar
@@ -325,7 +325,7 @@ class App(QMainWindow):
             b.setMinimumHeight(32); b.setCursor(Qt.CursorShape.PointingHandCursor)
             b.clicked.connect(fn); bot.addWidget(b)
 
-        self.save_btn = QPushButton("💾 Save .txt")
+        self.save_btn = QPushButton("💾 Save")
         self.save_btn.setObjectName("SaveBtn")
         self.save_btn.setMinimumHeight(32)
         self.save_btn.setEnabled(False)
@@ -398,9 +398,15 @@ class App(QMainWindow):
             QTimer.singleShot(2000, lambda: self._set_status("Ready.", GREEN))
 
     def _save(self):
-        p, _ = QFileDialog.getSaveFileName(self, "Save", "urdu_ocr.txt", "*.txt")
+        p, _ = QFileDialog.getSaveFileName(self, "Save", "ocr.txt", "Text Files (*.txt);;PDF Files (*.pdf)")
         if p:
-            Path(p).write_text(self.out.toPlainText(), encoding="utf-8")
+            if p.lower().endswith(".pdf"):
+                from PyQt6.QtGui import QPdfWriter
+                writer = QPdfWriter(p)
+                writer.setResolution(300)
+                self.out.document().print(writer)
+            else:
+                Path(p).write_text(self.out.toPlainText(), encoding="utf-8")
             QMessageBox.information(self, "Saved", f"Saved to:\n{p}")
 
 
